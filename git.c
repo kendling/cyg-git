@@ -6,10 +6,86 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <windows.h>
+
+void getCwd(CHAR* buf, size_t len) {
+    HMODULE hm = GetModuleHandle(NULL);
+    GetModuleFileName(hm, buf, len);
+    CHAR* p = strrchr(buf, '\\');
+    *(++p) = '\0';
+    while (p != buf) {
+        if (*p == '\\')
+            *p = '/';
+
+        --p;
+    }
+}
+
+void findCygwinPath(CHAR* buf, size_t len) {
+    if (!buf || len <= 5)
+        return;
+
+    // read cygwin path from git.cfg
+    CHAR path[MAX_PATH] = {};
+    getCwd(path, MAX_PATH);
+    strcat(path, "git.cfg");
+    FILE* cfg = fopen(path, "r");
+    if (cfg) {
+        int size = fread(buf, sizeof(CHAR), len, cfg);
+        fclose(cfg);
+        cfg = NULL;
+        if (size > 0) {
+            CHAR* p = buf + size - 1;
+            if (*p != '\\' && *p != '/') {
+                ++p;
+                *p = '/';
+                ++p;
+                *p = 0;
+            }
+
+            for (size_t i = 0; i < size; ++i) {
+                if (*buf == '\\')
+                    *buf = '/';
+
+                ++buf;
+            }
+
+            return;
+        }
+    }
+
+    strcpy(path, "c:/cygwin64/bin/");
+    for (char d = 'c'; d <= 'z'; ++d) {
+        path[0] = d;
+        if (access(path, 0) == 0) {
+            strncpy(buf, path, strlen(path));
+            return;
+        }
+    }
+
+    strcpy(path, "c:/cygwin/bin/");
+    for (char d = 'c'; d <= 'z'; ++d) {
+        path[0] = d;
+        if (access(path, 0) == 0) {
+            strncpy(buf, path, strlen(path));
+            return;
+        }
+    }
+}
 
 int main(int argc, char **argv)
 {
-    char buf[4000] = "C:/cygwin64/bin/sh -c 'git-wrapper";
+    // Get the path of this program
+    CHAR path[MAX_PATH];
+    getCwd(path, MAX_PATH);
+    
+    char buf[4000] = {};
+    findCygwinPath(buf, 4000);
+    strcat(buf, "sh -c '");
+    strcat(buf, path);
+    strcat(buf, "git-wrapper");
+
     int rest = sizeof(buf) - strlen(buf) - 2; /* 2 for "'\0" */
 
     for (int i = 1; i < argc; i++) {

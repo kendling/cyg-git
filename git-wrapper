@@ -1,25 +1,32 @@
 #!/usr/bin/zsh -
 PATH="/usr/bin:$PATH"
 wrap_output=""
+
 for ((i = 1; i <= $#; i++)); do
     a="$argv[i]"
     if [ -z "$a" ]; then
         argv[i]=()
         ((i--))
-    elif [ "$a" = 'rev-parse' -a $i = 1 ]; then
-        argv[1]="$a"
+    elif [ "$a" = 'rev-parse' ]; then
         wrap_output=yes
+    elif [[ "$a" = *longpaths* ]]; then
+		# git in cygwin not support core.longpaths
+        argv[i]="gc.autodetach=false"
     elif [ "$a[1]" != '-' ]; then 
         argv[i]=`cygpath -u "$a"`
     fi
 done
+
 if [ $wrap_output ]; then
     if a=`git "$@"`; then
         if [ -z "$a" ]; then
-        elif [ "$a[1]" = '-' ]; then
-            echo $a
+        elif [ "$a[1]" = '/' ]; then
+            array=(`echo $a | tr '\n' ' '`)
+            for a in ${array[@]}; do
+                cygpath -w "$a" | sed 's#\\#/#g'
+            done
         else
-            cygpath -w "$a"
+            echo $a
         fi
     else
         x=$?
