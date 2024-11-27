@@ -94,7 +94,7 @@ int main(int argc, char **argv)
             fprintf(stderr, "arguments too long\n");
             return 1;
         }
-        bool quote = argv[i] == strstr(argv[i], "\"");
+        bool quote = !strstr(argv[i], "\"");
         strcat(buf, " ");
         if (quote) strcat(buf, "\"");
         strcat(buf, argv[i]);
